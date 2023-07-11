@@ -23,7 +23,7 @@ def main():
     print('Ready for queries')
 
     HOST = "127.0.0.1"  # localhost
-    PORT = 1111  # Port to listen on (non-privileged ports are > 1023)
+    PORT = 8077  # Port to listen on (non-privileged ports are > 1023)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
        s.bind((HOST, PORT))
        s.listen()

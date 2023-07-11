@@ -1,5 +1,11 @@
 data
 saved_text_embeddings
+##Minkowski
+MinkowskiEngine/modelnet40_ply_hdf5_2048/
+MinkowskiEngine/modelnet40_ply_hdf5_2048.zip
+##git demo
+demo/*
+
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
 # Byte-compiled / optimized / DLL files

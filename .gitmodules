@@ -1,3 +1,6 @@
 [submodule "demo/gaps"]
 	path = demo/gaps
 	url = git@github.com:tomfunkhouser/gaps.git
+[submodule "MinkowskiEngine"]
+	path = MinkowskiEngine
+	url = https://github.com/NVIDIA/MinkowskiEngine.git
