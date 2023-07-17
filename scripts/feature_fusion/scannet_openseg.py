@@ -20,7 +20,7 @@ def get_args():
     parser.add_argument('--split', type=str, default='train', help='split: "train"| "val"')
     parser.add_argument('--output_dir', type=str, help='Where is the base logging directory')
     parser.add_argument('--openseg_model', type=str, default='', help='Where is the exported OpenSeg model')
-    parser.add_argument('--process_id_range', nargs='+', default=None, help='the id range to process')
+    parser.add_argument('--process_id_range', nargs='+', default=None, help='the id range to process')# given `0,2` means from 0 to 2 (in total we have #scannet_3d/scene*_*_vh_clean_2.pth times 1201
     parser.add_argument('--img_feat_dir', type=str, default='', help='the id range to process')
 
     # Hyper parameters
@@ -29,39 +29,40 @@ def get_args():
     return args
 
 
-def process_one_scene(data_path, out_dir, args):
+def process_one_scene(data_path, out_dir, args):# data_path is the absolute  #scannet_3d/scene*_*_vh_clean_2.pth path
     '''Process one scene.'''
 
     # short hand
-    scene_id = data_path.split('/')[-1].split('_vh')[0]
+    scene_id = data_path.split('/')[-1].split('_vh')[0] #scene*_*, for example scene0000_00
 
-    num_rand_file_per_scene = args.num_rand_file_per_scene
-    feat_dim = args.feat_dim
-    point2img_mapper = args.point2img_mapper
-    depth_scale = args.depth_scale
+    num_rand_file_per_scene = args.num_rand_file_per_scene# if `train`, num_rand_file_per_scene = 5 otherwise =1
+    feat_dim = args.feat_dim #768
+    point2img_mapper = args.point2img_mapper############# how? plz check class later
+    depth_scale = args.depth_scale#1000
     openseg_model = args.openseg_model
-    text_emb = args.text_emb
+    text_emb = args.text_emb#1x1x768 tensor
     keep_features_in_memory = args.keep_features_in_memory
 
     # load 3D data (point cloud)
-    locs_in = torch.load(data_path)[0]
-    n_points = locs_in.shape[0]
-
+    #locs_in =torch.load(data_path)# index 0 = position, index 1 = color, index 2 =label
+    locs_in = torch.load(data_path)[0] #loads an object saved with torch.save()
+    n_points = locs_in.shape[0]  
+    
     n_interval = num_rand_file_per_scene
     n_finished = 0
-    for n in range(n_interval):
+    for n in range(n_interval):#######################
 
         if exists(join(out_dir, scene_id +'_%d.pt'%(n))):
             n_finished += 1
             print(scene_id +'_%d.pt'%(n) + ' already done!')
             continue
-    if n_finished == n_interval:
+    if n_finished == n_interval:# break
         return 1
 
     # short hand for processing 2D features
-    scene = join(args.data_root_2d, scene_id)
-    img_dirs = sorted(glob(join(scene, 'color/*')), key=lambda x: int(os.path.basename(x)[:-4]))
-    num_img = len(img_dirs)
+    scene = join(args.data_root_2d, scene_id)#*scene*_*
+    img_dirs = sorted(glob(join(scene, 'color/*')), key=lambda x: int(os.path.basename(x)[:-4])) #key function define the sorting rule 
+    num_img = len(img_dirs)#296 for scene000_1
     device = torch.device('cpu')
 
     # extract image features and keep them in the memory
@@ -72,21 +73,21 @@ def process_one_scene(data_path, out_dir, args):
             img_features.append(extract_openseg_img_feature(img_dir, openseg_model, text_emb, img_size=[240, 320]))
 
     n_points_cur = n_points
-    counter = torch.zeros((n_points_cur, 1), device=device)
-    sum_features = torch.zeros((n_points_cur, feat_dim), device=device)
+    counter = torch.zeros((n_points_cur, 1), device=device)#torch.Size([80583, 1])
+    sum_features = torch.zeros((n_points_cur, feat_dim), device=device)#torch.Size([80583, 768])
 
     ################ Feature Fusion ###################
-    vis_id = torch.zeros((n_points_cur, num_img), dtype=int, device=device)
-    for img_id, img_dir in enumerate(tqdm(img_dirs)):
-        # load pose
-        posepath = img_dir.replace('color', 'pose').replace('.jpg', '.txt')
+    vis_id = torch.zeros((n_points_cur, num_img), dtype=int, device=device)# torch.Size([80583, 296])
+    for img_id, img_dir in enumerate(tqdm(img_dirs)):#index and direction
+        # load pose, pose = extrinsic
+        posepath = img_dir.replace('color', 'pose').replace('.jpg', '.txt')#'openscene/data/scannet_2d/scene0000_01/pose/0.txt'
         pose = np.loadtxt(posepath)
 
         # load depth and convert to meter
-        depth = imageio.v2.imread(img_dir.replace('color', 'depth').replace('jpg', 'png')) / depth_scale
+        depth = imageio.v2.imread(img_dir.replace('color', 'depth').replace('jpg', 'png')) / depth_scale#shape(240, 320)
 
         # calculate the 3d-2d mapping based on the depth
-        mapping = np.ones([n_points, 4], dtype=int)
+        mapping = np.ones([n_points, 4], dtype=int) #N,4
         mapping[:, 1:4] = point2img_mapper.compute_mapping(pose, locs_in, depth)
         if mapping[:, 3].sum() == 0: # no points corresponds to this image, skip
             continue
@@ -135,7 +136,7 @@ def main(args):
     args.data_root_2d = data_root_2d
     out_dir = args.output_dir
     os.makedirs(out_dir, exist_ok=True)
-    process_id_range = args.process_id_range
+    process_id_range = args.process_id_range 
 
 
     if split== 'train': # for training set, export a chunk of point cloud
@@ -151,12 +152,13 @@ def main(args):
     if args.openseg_model != '':
         args.openseg_model = tf2.saved_model.load(saved_model_path,
                     tags=[tf.saved_model.tag_constants.SERVING],)
-        args.text_emb = tf.zeros([1, 1, args.feat_dim])
+
+        args.text_emb = tf.zeros([1, 1, args.feat_dim]) #1x1x768
     else:
         args.openseg_model = None
 
     # load intrinsic parameter
-    intrinsics=np.loadtxt(os.path.join(args.data_root_2d, 'intrinsics.txt'))
+    intrinsics=np.loadtxt(os.path.join(args.data_root_2d, 'intrinsics.txt')) # ... + data_root_2d + intrinsics.txt
 
     # calculate image pixel-3D points correspondances
     args.point2img_mapper = PointCloudToImageMapper(
@@ -164,7 +166,7 @@ def main(args):
             visibility_threshold=visibility_threshold,
             cut_bound=args.cut_num_pixel_boundary)
 
-    data_paths = sorted(glob(join(data_root, split, '*.pth')))
+    data_paths = sorted(glob(join(data_root, split, '*.pth')))#scannet_3d/scene*_*_vh_clean_2.pth
     total_num = len(data_paths)
 
     id_range = None

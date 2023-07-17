@@ -1,6 +1,6 @@
 import os
 import torch
-import glob
+import glob #路径遵循标准unix规则
 import math
 import numpy as np
 from tensorflow import io
@@ -11,6 +11,8 @@ def read_bytes(path):
 
     with io.gfile.GFile(path, 'rb') as f:
         file_bytes = f.read()
+
+    print(file_bytes)
     return file_bytes
 
 
@@ -23,19 +25,23 @@ def make_intrinsic(fx, fy, mx, my):
     intrinsic[0][2] = mx
     intrinsic[1][2] = my
     return intrinsic
+    #[fx 0 mx]
+    #[0 fy my]
+    #[0  0  1]
 
 def adjust_intrinsic(intrinsic, intrinsic_image_dim, image_dim):
     '''Adjust camera intrinsics.'''
 
     if intrinsic_image_dim == image_dim:
         return intrinsic
+    #based on image_dim[1] resized width
     resize_width = int(math.floor(image_dim[1] * float(
                     intrinsic_image_dim[0]) / float(intrinsic_image_dim[1])))
     intrinsic[0, 0] *= float(resize_width) / float(intrinsic_image_dim[0])
     intrinsic[1, 1] *= float(image_dim[1]) / float(intrinsic_image_dim[1])
     # account for cropping here
     intrinsic[0, 2] *= float(image_dim[0] - 1) / float(intrinsic_image_dim[0] - 1)
-    intrinsic[1, 2] *= float(image_dim[1] - 1) / float(intrinsic_image_dim[1] - 1)
+    intrinsic[1, 2] *= float(image_dim[1] - 1) / float(intrinsic_image_dim[1] - 1)#########????? why-1
     return intrinsic
 
 
@@ -94,30 +100,34 @@ class PointCloudToImageMapper(object):
     def __init__(self, image_dim,
             visibility_threshold=0.25, cut_bound=0, intrinsics=None):
         
-        self.image_dim = image_dim
-        self.vis_thres = visibility_threshold
-        self.cut_bound = cut_bound
-        self.intrinsics = intrinsics
+        self.image_dim = image_dim # 320x240
+        self.vis_thres = visibility_threshold #0.25
+        self.cut_bound = cut_bound # 10 do not use feature on bundary
+        self.intrinsics = intrinsics #intrinsic:
+# 2.889353024999999775e+02 0.000000000000000000e+00 1.595000000000000000e+02 0.000000000000000000e+00
+# 0.000000000000000000e+00 2.889353024999999775e+02 1.195000000000000000e+02 0.000000000000000000e+00
+# 0.000000000000000000e+00 0.000000000000000000e+00 1.000000000000000000e+00 0.000000000000000000e+00
+# 0.000000000000000000e+00 0.000000000000000000e+00 0.000000000000000000e+00 1.000000000000000000e+00
 
     def compute_mapping(self, camera_to_world, coords, depth=None, intrinsic=None):
         """
         :param camera_to_world: 4 x 4
         :param coords: N x 3 format
-        :param depth: H x W format
+        :param depth: H x W format 
         :param intrinsic: 3x3 format
         :return: mapping, N x 3 format, (H,W,mask)
         """
         if self.intrinsics is not None: # global intrinsics
             intrinsic = self.intrinsics
 
-        mapping = np.zeros((3, coords.shape[0]), dtype=int)
+        mapping = np.zeros((3, coords.shape[0]), dtype=int) # (3, N) (3, 80583)
         coords_new = np.concatenate([coords, np.ones([coords.shape[0], 1])], axis=1).T
         assert coords_new.shape[0] == 4, "[!] Shape error"
 
-        world_to_camera = np.linalg.inv(camera_to_world)
-        p = np.matmul(world_to_camera, coords_new)
-        p[0] = (p[0] * intrinsic[0][0]) / p[2] + intrinsic[0][2]
-        p[1] = (p[1] * intrinsic[1][1]) / p[2] + intrinsic[1][2]
+        world_to_camera = np.linalg.inv(camera_to_world) #extrinsic matrix
+        p = np.matmul(world_to_camera, coords_new)#4, N    p=camera point coordinate, in each coloumn
+        p[0] = (p[0] * intrinsic[0][0]) / p[2] + intrinsic[0][2] #convertp[0] to image's x= focal length * camera point x / camera point z + translation x
+        p[1] = (p[1] * intrinsic[1][1]) / p[2] + intrinsic[1][2] #convertp[0] to image's y= focal length * camera point y / camera point z + translation y
         pi = np.round(p).astype(int) # simply round the projected coordinates
         inside_mask = (pi[0] >= self.cut_bound) * (pi[1] >= self.cut_bound) \
                     * (pi[0] < self.image_dim[0]-self.cut_bound) \
