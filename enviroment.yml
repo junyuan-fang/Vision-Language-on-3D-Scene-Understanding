@@ -1,0 +1,49 @@
+name: 3DInflation
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+dependencies:
+  # Basic python packages
+  - python=3.9
+  - pip
+  - tensorflow=*=*cu*
+  # Extra dependencies that are needed
+  - scikit-learn
+  - h5py
+  - numpy
+  # Get mkl blas library
+  - torchvision=*=*cu*
+  - torchaudio=*=*cu*
+  - blas * mkl
+  # Get compatible pytorch
+  - pytorch=*=*cuda*
+  # Get CUDA 11.4 libraries
+  - cuda-cccl=11.4
+  - cuda-nvcc=11.4
+  - cudatoolkit=11.1
+  - cuda-libraries=11.4
+  - cuda-cudart=11.4
+  - cuda-driver-dev=11.4
+  - cuda-cudart-dev=11.4
+  - cuda-nvrtc=11.4
+  - cuda-nvrtc-dev=11.4
+  - cuda-libraries-dev=11.4
+  - cuda-nvtx=11.4
+  - cuda-thrust=11.4
+  # Get CUDA 11.4 compatible compilers
+  - gcc_linux-64=10
+  - gxx_linux-64=10
+  # others
+  - scipy 
+  - ftfy
+  - tensorboardx
+  - tqdm
+  - imageio
+  - plyfile
+  - sharedarray
+  - jupyterlab
+  - pip:
+    - open3d
+    - opencv-python
+    - git+https://github.com/openai/CLIP.git
