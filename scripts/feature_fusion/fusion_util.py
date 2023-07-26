@@ -47,7 +47,7 @@ def adjust_intrinsic(intrinsic, intrinsic_image_dim, image_dim):
 
 def extract_openseg_img_feature(img_dir, openseg_model, text_emb, img_size=None, regional_pool=True):
     '''Extract per-pixel OpenSeg features.'''
-
+    #img_dir=['/home/fangj1/Code/openscene/data/scannet_2d/scene0000_01/color/0.jpg', '....]
     # load RGB image
     np_image_string = read_bytes(img_dir)
     # run OpenSeg
@@ -71,7 +71,7 @@ def extract_openseg_img_feature(img_dir, openseg_model, text_emb, img_size=None,
 
     feat_2d = torch.from_numpy(feat_2d).permute(2, 0, 1)
 
-    return feat_2d
+    return feat_2d#torch.Size([768, 240, 320])
 
 def save_fused_feature(feat_bank, point_ids, n_points, out_dir, scene_id, args):
     '''Save features.'''
@@ -120,7 +120,7 @@ class PointCloudToImageMapper(object):
         if self.intrinsics is not None: # global intrinsics
             intrinsic = self.intrinsics
 
-        mapping = np.zeros((3, coords.shape[0]), dtype=int) # (3, N) (3, 80583)
+        mapping = np.zeros((3, coords.shape[0]), dtype=int) # (3, N) (3, 80583) later use transpose
         coords_new = np.concatenate([coords, np.ones([coords.shape[0], 1])], axis=1).T
         assert coords_new.shape[0] == 4, "[!] Shape error"
 
@@ -129,9 +129,11 @@ class PointCloudToImageMapper(object):
         p[0] = (p[0] * intrinsic[0][0]) / p[2] + intrinsic[0][2] #convertp[0] to image's x= focal length * camera point x / camera point z + translation x
         p[1] = (p[1] * intrinsic[1][1]) / p[2] + intrinsic[1][2] #convertp[0] to image's y= focal length * camera point y / camera point z + translation y
         pi = np.round(p).astype(int) # simply round the projected coordinates
+        #why 1xN, square?
         inside_mask = (pi[0] >= self.cut_bound) * (pi[1] >= self.cut_bound) \
                     * (pi[0] < self.image_dim[0]-self.cut_bound) \
                     * (pi[1] < self.image_dim[1]-self.cut_bound)
+        ##################################################
         if depth is not None:
             depth_cur = depth[pi[1][inside_mask], pi[0][inside_mask]]
             occlusion_mask = np.abs(depth[pi[1][inside_mask], pi[0][inside_mask]]

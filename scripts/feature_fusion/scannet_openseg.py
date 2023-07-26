@@ -10,7 +10,14 @@ import tensorflow.compat.v1 as tf
 from os.path import join, exists
 from fusion_util import extract_openseg_img_feature, PointCloudToImageMapper, save_fused_feature
 
-
+#for memory leak
+from keras import backend as B
+# if keras.backend.tensorflow_backend._SESSION:
+#    import tensorflow as tf
+#    tf.reset_default_graph() 
+#    keras.backend.tensorflow_backend._SESSION.close()
+#    keras.backend.tensorflow_backend._SESSION = None
+   
 def get_args():
     '''Command line arguments.'''
 
@@ -37,7 +44,7 @@ def process_one_scene(data_path, out_dir, args):# data_path is the absolute  #sc
 
     num_rand_file_per_scene = args.num_rand_file_per_scene# if `train`, num_rand_file_per_scene = 5 otherwise =1
     feat_dim = args.feat_dim #768
-    point2img_mapper = args.point2img_mapper############# how? plz check class later
+    point2img_mapper = args.point2img_mapper# plz check class later
     depth_scale = args.depth_scale#1000
     openseg_model = args.openseg_model
     text_emb = args.text_emb#1x1x768 tensor
@@ -88,20 +95,24 @@ def process_one_scene(data_path, out_dir, args):# data_path is the absolute  #sc
 
         # calculate the 3d-2d mapping based on the depth
         mapping = np.ones([n_points, 4], dtype=int) #N,4
-        mapping[:, 1:4] = point2img_mapper.compute_mapping(pose, locs_in, depth)
+        mapping[:, 1:4] = point2img_mapper.compute_mapping(pose, locs_in, depth)#
         if mapping[:, 3].sum() == 0: # no points corresponds to this image, skip
             continue
 
-        mapping = torch.from_numpy(mapping).to(device)
+        mapping = torch.from_numpy(mapping).to(device)#from numpy to tensor #torch.Size([80583, 4])
         mask = mapping[:, 3]
-        vis_id[:, img_id] = mask
+        vis_id[:, img_id] = mask #torch.Size([80583]) with value of the visibility
         if keep_features_in_memory:
             feat_2d = img_features[img_id].to(device)
         else:
-            feat_2d = extract_openseg_img_feature(img_dir, openseg_model, text_emb, img_size=[240, 320]).to(device)
-
-        feat_2d_3d = feat_2d[:, mapping[:, 1], mapping[:, 2]].permute(1, 0)
-
+            feat_2d = extract_openseg_img_feature(img_dir, openseg_model, text_emb, img_size=[240, 320]).to(device) #torch.Size([768, 240, 320])
+        print(feat_2d.shape)
+        print(mapping[:, 1].shape)
+        print(mapping[:, 2].shape)
+        
+        feat_2d_3d = feat_2d[:, mapping[:, 1], mapping[:, 2]].permute(1, 0)#torch.Size([80583, 768])
+        print(feat_2d_3d.shape)
+        ###torch.Size([80583, 1]), feature average pooling
         counter[mask!=0]+= 1
         sum_features[mask!=0] += feat_2d_3d[mask!=0]
 
