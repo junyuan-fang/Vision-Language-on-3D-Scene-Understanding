@@ -9,3 +9,6 @@ or
 
 ### exporting the environment.yml file 
 ```conda env export > environment.yml```
+
+### debug mode 
+```contol + shift + p```  then select `Python: Select Interpreter`
