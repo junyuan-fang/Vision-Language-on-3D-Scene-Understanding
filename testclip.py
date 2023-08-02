@@ -1,3 +1,4 @@
+## need to be moved to CLIP/
 # import torch
 # import clip
 # from PIL import Image
