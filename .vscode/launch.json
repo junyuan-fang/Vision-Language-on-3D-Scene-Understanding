@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}" , 
-            "cwd":"/home/fangj1/Code/Vision-Language-on-3D-Scene-Understanding/CLIP",
+            "cwd":"/home/fangj1/Code/Vision-Language-on-3D-Scene-Understanding/src/data/acdc",
             "console": "integratedTerminal",
             "justMyCode": true
         }

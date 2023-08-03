@@ -27,7 +27,10 @@ Please install dependencies by
 ```bash
 conda env create -f environment.yml
 ```
-
+or 
+```bash
+mamba env create -f environment.yml
+```
 ### Dataset and Model
 
 - We use the **[BCV](https://www.synapse.org/\#!Synapse:syn3193805/wiki/217789)**, **[ACDC](https://www.creatis.insa-lyon.fr/Challenge/acdc/)**, **[MSD](https://drive.google.com/file/d/1jzeNU1EKnK81PyTsrx0ujfNl-t0Jo8uE/view?usp=sharing)** dataset, please register and download these datasets.
