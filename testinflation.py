@@ -30,33 +30,33 @@ import torch
 # print(weight[2, :, :, :])
 
 
-# ##y-axis
-# trans = torch.eye(9).repeat(1, 3).contiguous()#(9.27)
-# model = torch.range(0,3*3*3*3-1).reshape(3,3,3,3)
-# cout, cin = model.shape[:2]
-# squize = model.view(cout, cin, -1) #(3.3.9)
-# print(trans)
-# print(squize)
-# weights = torch.matmul(squize, trans)#.permute(2, 1, 0)
-# print(weights)
-# weights = torch.matmul(squize, trans).permute(2, 1, 0)
-# print(weights)
-
-
-#x-axis
-trans = torch.zeros(9, 27)
-trans[0, :3] = 1
-trans[3, 3:6] = 1
-trans[6, 6:9] = 1
-trans[1, 9:12] = 1
-trans[4, 12:15] = 1
-trans[7, 15:18] = 1
-trans[2, 18:21] = 1
-trans[5, 21:24] = 1
-trans[8, 24:27] = 1
-trans = trans.contiguous()
+##y-axis
+trans = torch.eye(9).repeat(1, 3).contiguous()#(9.27)
 model = torch.range(0,3*3*3*3-1).reshape(3,3,3,3)
 cout, cin = model.shape[:2]
-model = model.view(cout, cin, -1)
-weights = torch.matmul(model, trans).permute(2, 1, 0)
+squize = model.view(cout, cin, -1) #(3.3.9)
+print(trans)
+print(squize)
+weights = torch.matmul(squize, trans)#.permute(2, 1, 0) #3 3 27
 print(weights)
+weights = torch.matmul(squize, trans).permute(2, 1, 0)
+print(weights)
+
+
+# #x-axis
+# trans = torch.zeros(9, 27)
+# trans[0, :3] = 1
+# trans[3, 3:6] = 1
+# trans[6, 6:9] = 1
+# trans[1, 9:12] = 1
+# trans[4, 12:15] = 1
+# trans[7, 15:18] = 1
+# trans[2, 18:21] = 1
+# trans[5, 21:24] = 1
+# trans[8, 24:27] = 1
+# trans = trans.contiguous()
+# model = torch.range(0,3*3*3*3-1).reshape(3,3,3,3)
+# cout, cin = model.shape[:2]
+# model = model.view(cout, cin, -1)
+# weights = torch.matmul(model, trans).permute(2, 1, 0)
+# print(weights)

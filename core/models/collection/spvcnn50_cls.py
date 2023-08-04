@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 import torchsparse.nn as spnn
-from torchsparse.point_tensor import PointTensor
+from torchsparse.tensor import *
 
 from core.models.utils import *
 

@@ -1,11 +1,15 @@
 import torch.nn as nn
 
 import torchsparse
+# print(torchsparse.__version__, torchsparse.__file__)
 import torchsparse.nn as spnn
-from torchsparse.point_tensor import PointTensor
+import torchsparse.tensor
+# print(dir(torchsparse.tensor))
+# print(torchsparse.tensor.__file__)
+from torchsparse.tensor import *
 
 from core.models.utils import *
-
+#torchpack dist-run -np 3 python train.py configs/modelnet/18_finetune.yaml --run-dir
 
 __all__ = ['SPVCNN18']
 
