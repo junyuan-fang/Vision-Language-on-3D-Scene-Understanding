@@ -10,7 +10,8 @@ import glob
 import random
 import numpy as np
 from torchsparse import SparseTensor
-from torchsparse.utils import sparse_collate_fn, sparse_quantize
+from torchsparse.utils.collate import sparse_collate_fn
+from torchsparse.utils.quantize import sparse_quantize
 
 
 class CoordinateTransformation:
@@ -143,9 +144,9 @@ class ModelNetInternal:
         labels_ = label
         inds, inverse_map = sparse_quantize(pc_,
                                                     feat_,
-                                                    labels=None,
+                                                    #labels=None,
                                                     return_index=True,
-                                                    return_invs=True)
+                                                    return_inverse=True)
 
         if 'train' in self.phase:
             if len(inds) > self.num_points:
