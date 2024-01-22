@@ -54,6 +54,13 @@ def pos_embed_weight_transform_1(pre_weight):#Inflate by repeating each of the 4
     inflated_tensor = torch.cat((first_token,repeated_elements),dim=0)
     return inflated_tensor
 
+def pos_embed_weight_transform_2(pre_weight):#Inflate by repeating each of the 49 elements seven times and then move to the next element
+    tokens , channels = pre_weight.shape
+    repeat_factor = int(math.sqrt(tokens-1))
+    first_token = pre_weight[0:1]
+    repeated_elements = pre_weight[1:].repeat_interleave(repeat_factor,dim=0)
+    inflated_tensor = torch.cat((first_token,repeated_elements),dim=0)
+    return inflated_tensor
 
 
 
