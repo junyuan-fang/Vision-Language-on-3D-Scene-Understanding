@@ -1,0 +1,4 @@
+train_layers:
+- visual.class_embedding
+- visual.positional_embedding
+- visual.conv1.weight
