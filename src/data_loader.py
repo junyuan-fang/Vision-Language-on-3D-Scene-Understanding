@@ -53,56 +53,73 @@ class HDF5_n_shot(Dataset):#todo
 
 class HDF5Dataset(Dataset):
     """
-    h5_file='path/to/your_dataset.h5', 
-    transform=your_transform_function_from_clip's_preprocess
+    A dataset class for handling HDF5 files for PyTorch models.
+
+    Parameters:
+    - h5_file (str): Path to the HDF5 file containing the dataset.
+    - transform (callable, optional): A function/transform from clip that takes in a sample and returns a transformed version.
+    - tokenization (callable, optional): A function for tokenizing category labels if necessary.
+    - prompt (str, optional): A prompt template to be used with tokenization.
+    - split (str, optional): Specifies if this is a 'train' or 'test' dataset split. Default is 'train'.
+    - split_ratio (float, optional): The ratio of the dataset to be used for training. Ignored if split is 'test'. Default is 0.8.
+    - seed (int, optional): Random seed for reproducibility. Default is 0.
     """
     def __init__(self, h5_file, transform=None, tokenization = None, prompt = None, split = 'train', split_ratio = 0.8, seed = 0):
+        assert 0 < split_ratio < 1, "split_ratio must be between 0 and 1"
+        assert split in ['train', 'test'], "split must be 'train' or 'test'"
+        
         self.h5_file = h5_file
         self.transform = transform
         self.tokenization = tokenization
         self.prompt = prompt
         self.split = split
+        self.file = None  # Placeholder for the HDF5 file handle
+        self.rng = np.random.default_rng(seed)  # Local random number generator
         
-        with h5py.File(self.h5_file, 'r') as file:
-            self.length = len(file['label'])
-
-       # 设置随机种子以确保可重复性
-        np.random.seed(seed)
+        try:
+            self.file = h5py.File(self.h5_file, 'r')
+        except Exception as e:
+            raise FileNotFoundError(f"Failed to open file {self.h5_file}: {e}")
         
-        with h5py.File(self.h5_file, 'r') as file:
-            labels = np.array(file['label'])
-            # 计算分割点
-            num_samples = len(labels)
-            indices = np.arange(num_samples)
-            np.random.shuffle(indices)
-            split_point = int(num_samples * split_ratio)
-            
-            if split == 'train':
-                self.indices = indices[:split_point]
-            elif split == 'test':
-                self.indices = indices[split_point:]
-            else:
-                raise ValueError("split must be 'train' or 'test'")
-                
-            self.categories = [category.decode('utf-8') for category in file['category'][:]] 
+        if 'label' not in self.file or 'data' not in self.file or 'category' not in self.file:
+            raise ValueError("HDF5 file must contain 'data', 'label', and 'category' datasets.")
+        
+        self.length = len(self.file['label'])
+        num_samples = len(self.file['label'])
+        indices = np.arange(num_samples)
+        self.rng.shuffle(indices)
+        split_point = int(num_samples * split_ratio)
+        
+        if split == 'train':
+            self.indices = indices[:split_point]
+        else:  # split == 'test'
+            self.indices = indices[split_point:]
+        
+        self.categories = [category.decode('utf-8') for category in self.file['category'][:]]
         
     def __len__(self):
         return len(self.indices)
 
     def __getitem__(self, idx):
+        if self.file is None:
+            raise RuntimeError("Dataset file is not open.")
+        
         actual_idx = self.indices[idx]
-        with h5py.File(self.h5_file, 'r') as file:
-            data = file['data'][actual_idx]
-            label = file['label'][actual_idx]#
-            category = file['category'][label].decode('utf-8')#string
+        data = self.file['data'][actual_idx]
+        label = self.file['label'][actual_idx]
+        category = self.file['category'][label].decode('utf-8')  # string
 
         if self.transform:
             data = self.transform(data)
-            #label = torch.tensor(label)
-        
+
         if self.tokenization and self.prompt:
-            category = self.tokenization(self.prompt.replace("*",category))
+            category = self.tokenization(self.prompt.replace("*", category))
 
         return data, category
+
     def get_categories(self):
         return self.categories
+    
+    def __del__(self):
+        if self.file is not None:
+            self.file.close()
