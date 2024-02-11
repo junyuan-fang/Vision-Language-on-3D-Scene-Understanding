@@ -1,4 +1,28 @@
-train_layers:
-- visual.class_embedding
-- visual.positional_embedding
-- visual.conv1.weight
+data_parameters:
+  file: "voxel_all.h5"
+  DATA_READ_PATH: 'data/ScanObjectNN/processed_object_dataset/'
+  prompt: "a volume data of a *"
+  split_ratio: 0.8
+  seed: 0
+  batch_size: 10
+  validation_ratio: 0.1
+
+model_parameters:
+  train_layers:
+  - visual.class_embedding
+  - visual.positional_embedding
+  - visual.conv1.weight
+  num_epochs: 10
+  log_interval: 5
+  lr: 0.001
+  SAVE_MODEL_PATH: 'trained_model'
+  # Adam optimizer is used with specific hyperparameters
+  # lr (learning rate) is set to 5e-5, which is considered safe for fine-tuning to a new dataset
+  # betas are used for the optimization algorithm
+  # eps is a small value to prevent division by zero
+  # weight_decay adds L2 regularization to the optimizer
+  optimizer:
+    betas: [0.9, 0.98]
+    eps: 1e-6
+    weight_decay: 0.2
+    
