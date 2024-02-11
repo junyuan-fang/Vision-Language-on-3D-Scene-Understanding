@@ -44,9 +44,9 @@ def prediction(voxel, label):
     values, indices = similarity[0].topk(topk)
 
     # Print the result
-    print(f"\n {categories[label].decode('utf-8')} 's top {topk} predictions:")
+    print(f"\n {categories[label]} 's top {topk} predictions:")
     for value, index in zip(values, indices):
-        category_str = categories[index].decode('utf-8')  # Decode bytes to string
+        category_str = categories[index]
         print(f"{category_str:>16s}: {100 * value.item():.2f}%")
         
     predicted_class = torch.argmax(similarity).item()
@@ -66,10 +66,11 @@ generator  = data_generator(READ_PATH+file,batch_size)
 
 with h5py.File(READ_PATH+file, 'r') as f:
     categories = list(f['category'])
+    categories = [category.decode('utf-8') for category in categories]
 # Prepare the prompts
 print(categories)
 print(len(categories))
-text_inputs = torch.cat([clip.tokenize(f"a volume data of a {c}") for c in categories]).to(device)
+text_inputs = torch.cat([clip.tokenize(f"A voxelized representation of {c}") for c in categories]).to(device)
 
 
 
