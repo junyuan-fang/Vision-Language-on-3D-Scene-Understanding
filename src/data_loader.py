@@ -3,53 +3,98 @@ from torch.utils.data import Dataset
 import torch
 import numpy as np  
 
-class HDF5_n_shot(Dataset):#todo
+class HDF5_N_ShotDataset(Dataset):
     """
-    h5_file='path/to/your_dataset.h5', 
-    transform=your_transform_function_from_clip's_preprocess
+    A dataset class for handling HDF5 files for PyTorch models, specifically designed for N-shot learning tasks.
+
+    Parameters:
+    - h5_file (str): Path to the HDF5 file containing the dataset.
+    - n (int): Number of samples per class to include in the support set.
+    - k (int): Number of classes to include in each N-shot task.
+    - q (int): Number of query samples per class.
+    - transform (callable, optional): A function/transform that takes in an image sample and returns a transformed version.
+    - tokenization (callable, optional): A function for tokenizing category labels if necessary.
+    - prompt (str, optional): A prompt template to be used with tokenization.
+    - split (str, optional): Specifies if this is a 'train' or 'test' dataset split. Default is 'train'.
+    - split_ratio (float, optional): The ratio of the dataset to be used for training. Ignored if split is 'test'. Default is 0.8.
+    - seed (int, optional): Random seed for reproducibility. Default is 0.
     """
-    def __init__(self, h5_file, n_shot, transform=None, tokenization=None, prompt=None):
+    def __init__(self, h5_file, n, k, q, transform=None, tokenization=None, prompt=None, split='train', split_ratio=0.8, seed=0):
+        assert 0 < split_ratio < 1, "split_ratio must be between 0 and 1"
+        assert split in ['train', 'test'], "split must be 'train' or 'test'"
+        
         self.h5_file = h5_file
+        self.n = n
+        self.k = k
+        self.q = q
         self.transform = transform
         self.tokenization = tokenization
         self.prompt = prompt
-        self.n_shot = n_shot
+        self.split = split
+        self.rng = np.random.default_rng(seed)
         
-        with h5py.File(self.h5_file, 'r') as file:
-            self.labels = file['label'][:]
-            self.categories = [category.decode('utf-8') for category in file['category'][:]]
-        #self.category_to_indices字典允许你快速地通过类别名称访问所有属于该类别的样本索引，这对于实现基于类别的采样逻辑（如在n-shot学习场景中）非常有用
-        self.category_to_indices = {category: torch.where(torch.tensor(self.labels) == i)[0]
-                                    for i, category in enumerate(self.categories)}
-
+        # Opening the HDF5 file
+        try:
+            self.file = h5py.File(self.h5_file, 'r')
+        except Exception as e:
+            raise FileNotFoundError(f"Failed to open file {self.h5_file}: {e}")
+        
+        if 'label' not in self.file or 'data' not in self.file or 'category' not in self.file:
+            raise ValueError("HDF5 file must contain 'data', 'label', and 'category' datasets.")
+        
+        # Prepare indices for splitting the dataset
+        labels = np.array(self.file['label'])
+        self.categories = np.unique(labels)
+        self.category_to_indices = {cat: np.where(labels == cat)[0] for cat in self.categories}
+        
+        self.indices = self.prepare_indices(split, split_ratio, labels)
+        
+    def prepare_indices(self, split, split_ratio, labels):
+        """
+        Prepares indices for training and testing splits.
+        """
+        indices = np.arange(len(labels))
+        self.rng.shuffle(indices)
+        split_point = int(len(indices) * split_ratio)
+        
+        if split == 'train':
+            return indices[:split_point]
+        else:  # split == 'test'
+            return indices[split_point:]
+    
     def __len__(self):
-        # 这里的长度被设定为总样本数除以n_shot，你可能需要根据实际情况调整
-        return len(self.labels) // self.n_shot
+        # This might need adjustment based on how you define an epoch with N-shot tasks
+        return len(self.indices) // (self.k * (self.n + self.q))
 
     def __getitem__(self, idx):
-        category = self.categories[idx % len(self.categories)]
-        indices = self.category_to_indices[category]
+        """
+        Returns an N-shot task consisting of support and query sets.
+        """
+        task_indices = []
+        selected_classes = self.rng.choice(self.categories, self.k, replace=False)
         
-        # 随机选择n_shot个样本
-        chosen_indices = torch.randperm(len(indices))[:self.n_shot]
+        for cls in selected_classes:
+            cls_indices = self.rng.choice(self.category_to_indices[cls], self.n + self.q, replace=False)
+            task_indices.extend(cls_indices)
         
-        data, categories = [], []
-        with h5py.File(self.h5_file, 'r') as file:
-            for i in chosen_indices:
-                datum = file['data'][i.item()]
-                if self.transform:
-                    datum = self.transform(datum)
-                if self.tokenization and self.prompt:
-                    category_text = self.tokenization(self.prompt.replace("*", category))
-                else:
-                    category_text = category
-                data.append(datum)
-                categories.append(category_text)
+        data, labels = [], []
+        for idx in task_indices:
+            with h5py.File(self.h5_file, 'r') as file:
+                d = file['data'][idx]
+                l = file['label'][idx]
+            if self.transform:
+                d = self.transform(d)
+            if self.tokenization and self.prompt:
+                l = self.tokenization(self.prompt.replace("*", l.decode('utf-8')))
+            data.append(d)
+            labels.append(l)
         
-        # Stack data for returning
-        data = torch.stack(data)
-        # 注意：这里我们返回了一个类别的n-shot样本
-        return data, categories
+        # Returning the data and labels as tensors
+        return torch.stack(data), torch.tensor(labels)
+
+    def __del__(self):
+        if hasattr(self, 'file') and self.file is not None:
+            self.file.close()
 
 class HDF5Dataset(Dataset):
     """
