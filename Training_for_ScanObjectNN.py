@@ -10,6 +10,7 @@ from  tqdm import tqdm
 import yaml
 import os
 from datetime import datetime
+from torch.utils.tensorboard import SummaryWriter
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 #hyperparameters
@@ -37,6 +38,7 @@ optimizer_config = model_parameters['optimizer']
 betas = tuple([float(beta) for beta in optimizer_config['betas']]) 
 eps = float(optimizer_config['eps'])
 weight_decay = float(optimizer_config['weight_decay'])
+train_layers = model_parameters['train_layers']
 
 # 创建基于时间戳的目录 for saving model
 timestamp = datetime.now().strftime('%m%d-%H%M%S')
@@ -56,7 +58,7 @@ convert_models_to_fp32(model)
 
 #fix others' weights but not tunable layers' weights
 for name, param in model.named_parameters():
-    if name not in ['visual.positional_embedding', 'visual.class_embedding', 'visual.conv1.weight']:
+    if name not in train_layers:
         param.requires_grad = True
     else:
         param.requires_grad = False
@@ -110,7 +112,7 @@ for epoch in range(num_epochs):
             #how to get local gpu number
             #print(logits_per_voxel.device, logits_per_text.device, ground_truth.device)
             #quit()
-            total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2
+            total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2# always 2.3, cross entropy.
         
         # Perform backward pass and gradient scaling
         scaler.scale(total_loss).backward()
@@ -126,21 +128,21 @@ for epoch in range(num_epochs):
     # Add your validation logic here
     # Save your model here if it's the best so far
     # VAL.
-    model.eval()  # 设置模型为评估模式
-    total_valid_loss = 0
-    with torch.no_grad():  # 关闭梯度计算
-        pbar_valid = tqdm(valid_dataloader, total=len(valid_dataloader))
-        for count, voxel_inputs, text_labels in enumerate(pbar_valid):
-            voxel_inputs = voxel_inputs.to(device)
-            text_inputs = torch.cat([clip.tokenize(f"a volume data of a {category}") for category in text_labels]).to(device)
+    # model.eval()  # 设置模型为评估模式
+    # total_valid_loss = 0
+    # with torch.no_grad():  # 关闭梯度计算
+    #     pbar_valid = tqdm(valid_dataloader, total=len(valid_dataloader))
+    #     for count, voxel_inputs, text_labels in enumerate(pbar_valid):
+    #         voxel_inputs = voxel_inputs.to(device)
+    #         text_inputs = torch.cat([clip.tokenize(f"a volume data of a {category}") for category in text_labels]).to(device)
 
-            with autocast():
-                logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs)
-                ground_truth = torch.arange(len(voxel_inputs), dtype=torch.long, device=device)
-                valid_loss = (loss_voxel(logits_per_voxel, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
-                total_valid_loss += valid_loss.item()
-                avg_valid_loss = total_valid_loss / (count + 1)
-            pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {total_loss.item():.4f}")
+    #         with autocast():
+    #             logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs)
+    #             ground_truth = torch.arange(len(voxel_inputs), dtype=torch.long, device=device)
+    #             valid_loss = (loss_voxel(logits_per_voxel, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
+    #             total_valid_loss += valid_loss.item()
+    #             avg_valid_loss = total_valid_loss / (count + 1)
+    #         pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {total_loss.item():.4f}")
     
     
     # # 如果这是迄今为止最佳模型，则保存它
@@ -154,5 +156,6 @@ for epoch in range(num_epochs):
     
 #save after training   
 torch.save(model.state_dict(), model_path)
-    
+writer.flush()
+writer.close()
     
