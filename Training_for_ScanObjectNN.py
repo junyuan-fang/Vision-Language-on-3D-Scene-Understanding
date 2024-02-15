@@ -58,7 +58,7 @@ convert_models_to_fp32(model)
 
 #fix others' weights but not tunable layers' weights
 for name, param in model.named_parameters():
-    if name not in train_layers:
+    if name in train_layers:
         param.requires_grad = True
     else:
         param.requires_grad = False
@@ -81,9 +81,10 @@ valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=Fals
 
 best_valid_loss = float('inf')
 # Define scaler for automatic scaling of gradients
+
+writer = SummaryWriter(run_dir)
 for epoch in range(num_epochs):
     pbar = tqdm(train_dataloader, total=len(train_dataloader)) #进度条 迭代器，每次迭代立面都有batch_size个元素
-    
     #TRAIN
     for voxel_inputs, text_inputs in pbar:# one bach have n elements
         # Zero the gradients
@@ -113,7 +114,6 @@ for epoch in range(num_epochs):
             #print(logits_per_voxel.device, logits_per_text.device, ground_truth.device)
             #quit()
             total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2# always 2.3, cross entropy.
-        
         # Perform backward pass and gradient scaling
         scaler.scale(total_loss).backward()
         scaler.unscale_(optimizer)
@@ -123,7 +123,7 @@ for epoch in range(num_epochs):
         
         # Print training progress
         pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss.item():.4f}")
-
+        writer.add_scalar('Loss/train', total_loss.item(), epoch*len(train_dataloader)+len(pbar))
     
     # Add your validation logic here
     # Save your model here if it's the best so far
