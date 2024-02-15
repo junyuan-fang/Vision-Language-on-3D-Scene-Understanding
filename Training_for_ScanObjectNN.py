@@ -82,11 +82,13 @@ valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=Fals
 best_valid_loss = float('inf')
 # Define scaler for automatic scaling of gradients
 
-writer = SummaryWriter(run_dir)
+writer = SummaryWriter()
 for epoch in range(num_epochs):
-    pbar = tqdm(train_dataloader, total=len(train_dataloader)) #进度条 迭代器，每次迭代立面都有batch_size个元素
+    iterations = len(train_dataloader)
+    pbar = tqdm(train_dataloader, total = iterations) #进度条 迭代器，每次迭代立面都有batch_size个元素
+    total_loss_accumulated = 0
     #TRAIN
-    for voxel_inputs, text_inputs in pbar:# one bach have n elements
+    for batch_index,(voxel_inputs, text_inputs) in enumerate(pbar):# one bach have n elements
         # Zero the gradients
         optimizer.zero_grad()
         voxel_inputs= voxel_inputs.to(device)
@@ -114,6 +116,9 @@ for epoch in range(num_epochs):
             #print(logits_per_voxel.device, logits_per_text.device, ground_truth.device)
             #quit()
             total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2# always 2.3, cross entropy.
+            # 累积每个批次的损失
+            total_loss_accumulated += total_loss.item()
+            
         # Perform backward pass and gradient scaling
         scaler.scale(total_loss).backward()
         scaler.unscale_(optimizer)
@@ -121,10 +126,13 @@ for epoch in range(num_epochs):
         scaler.step(optimizer)
         scaler.update()
         
+        writer.add_scalar('Loss/train by iterations', total_loss.item(), iterations*epoch + batch_index)
+        
         # Print training progress
         pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss.item():.4f}")
-        writer.add_scalar('Loss/train', total_loss.item(), epoch*len(train_dataloader)+len(pbar))
     
+    avg_loss_per_epoch = total_loss_accumulated / iterations
+    writer.add_scalar('Loss/train by epoches', avg_loss_per_epoch, epoch)
     # Add your validation logic here
     # Save your model here if it's the best so far
     # VAL.
