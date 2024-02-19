@@ -116,6 +116,10 @@ for epoch in range(num_epochs):
             #print(logits_per_voxel.device, logits_per_text.device, ground_truth.device)
             #quit()
             total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2# always 2.3, cross entropy.
+            
+            if torch.isnan(total_loss):
+                print(f"NaN detected in loss at epoch {epoch+1}, batch {batch_index+1}")
+                continue
             # 累积每个批次的损失
             total_loss_accumulated += total_loss.item()
             
