@@ -8,13 +8,14 @@ data_parameters:
   validation_ratio: 0.1
 
 model_parameters:
+  model_name: "ViT-B/32" 
   train_layers:
   - visual.class_embedding
   - visual.positional_embedding
   - visual.conv1.weight
-  num_epochs: 10
+  num_epochs: 20
   log_interval: 5
-  lr: 0.001
+  lr: 5e-7
   SAVE_MODEL_PATH: 'trained_model'
   # Adam optimizer is used with specific hyperparameters
   # lr (learning rate) is set to 5e-5, which is considered safe for fine-tuning to a new dataset
@@ -24,5 +25,5 @@ model_parameters:
   optimizer:
     betas: [0.9, 0.98]
     eps: 1e-6
-    weight_decay: 0.2
+    weight_decay: 1e-4
     
