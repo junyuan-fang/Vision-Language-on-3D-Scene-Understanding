@@ -11,6 +11,7 @@ import yaml
 import os
 from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
+
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 #hyperparameters
@@ -119,7 +120,6 @@ for epoch in range(num_epochs):
             
             if torch.isnan(total_loss):
                 print(f"NaN detected in loss at epoch {epoch+1}, batch {batch_index+1}")
-                continue
             # 累积每个批次的损失
             total_loss_accumulated += total_loss.item()
             
