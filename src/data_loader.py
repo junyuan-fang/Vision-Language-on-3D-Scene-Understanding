@@ -158,15 +158,18 @@ class HDF5Dataset(Dataset):
         label = self.file['label'][actual_idx]
         category = self.file['category'][label].decode('utf-8')  # string
 
+        if np.isnan(data).any():
+            print(f"NaN detected in data at index {actual_idx}")
+            data = self.file['data'][0]
+            label = self.file['label'][0]
+            category = self.file['category'][label].decode('utf-8')
+        
         if self.transform:
             transformed_data = self.transform(data)
 
         if self.tokenization and self.prompt:
             category_prompt = self.prompt.replace("*", category)
         
-        if np.isnan(data).any() or np.isnan(transformed_data).any():
-            print(f"NaN detected in data at index {actual_idx}")
-            
         return transformed_data, category_prompt
 
     def get_categories(self):
