@@ -83,7 +83,7 @@ valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=Fals
 best_valid_loss = float('inf')
 # Define scaler for automatic scaling of gradients
 
-writer = SummaryWriter()
+writer = SummaryWriter(comment = f"_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}")
 for epoch in range(num_epochs):
     iterations = len(train_dataloader)
     pbar = tqdm(train_dataloader, total = iterations) #进度条 迭代器，每次迭代立面都有batch_size个元素
@@ -166,8 +166,8 @@ for epoch in range(num_epochs):
     
     # model.train()  # 设置模型回到训练模式
     
-#save after training   
-torch.save(model.state_dict(), model_path)
+    #save after each epoch training   
+    torch.save(model.state_dict(), model_path)
 writer.flush()
 writer.close()
     

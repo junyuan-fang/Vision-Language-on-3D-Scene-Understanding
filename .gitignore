@@ -5,6 +5,8 @@ __pycache__/
 .pytest_cache
 .ipynb_checkpoints
 
+runs/
+slurm*
 thumbs.db
 .DS_Store
 .idea
