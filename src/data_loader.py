@@ -112,7 +112,7 @@ class HDF5Dataset(Dataset):
     """
     def __init__(self, h5_file, transform=None, tokenization = None, prompt = None, split = 'train', split_ratio = 0.8, validation_ratio =0.1, seed = 0):
         assert 0 < split_ratio < 1, "split_ratio must be between 0 and 1"
-        assert split in ['train', 'test'], "split must be 'train' or 'test'"
+        assert split in ['train', 'test', 'valid'], "split must be 'train' or 'test'"
         
         self.h5_file = h5_file
         self.transform = transform
@@ -158,13 +158,19 @@ class HDF5Dataset(Dataset):
         label = self.file['label'][actual_idx]
         category = self.file['category'][label].decode('utf-8')  # string
 
+        if np.isnan(data).any():
+            print(f"NaN detected in data at index {actual_idx}")
+            data = self.file['data'][0]
+            label = self.file['label'][0]
+            category = self.file['category'][label].decode('utf-8')
+        
         if self.transform:
-            data = self.transform(data)
+            transformed_data = self.transform(data)
 
         if self.tokenization and self.prompt:
-            category = self.tokenization(self.prompt.replace("*", category))
-
-        return data, category
+            category_prompt = self.prompt.replace("*", category)
+        
+        return transformed_data, category_prompt
 
     def get_categories(self):
         return self.categories
