@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache
 .ipynb_checkpoints
 
+trained_model/*
 runs/
 slurm*
 thumbs.db
