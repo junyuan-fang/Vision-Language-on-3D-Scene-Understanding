@@ -9,11 +9,18 @@ from torch.utils.data import DataLoader
 from  tqdm import tqdm
 import yaml
 import os
+import argparse
 from datetime import datetime
 from torch.utils.tensorboard import SummaryWriter
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Train or test the model based on HDF5 dataset.")
+parser.add_argument('--mode', type=str, choices=['train', 'test'], required=True,
+                    help='Mode to run the script in. "train" for training mode, "test" for testing mode.')
+args = parser.parse_args()
 
+# Load configurations
+os.environ['CUDA_LAUNCH_BLOCKING'] = "1"  # for debugging
 #hyperparameters
 with open('config/train.yml', 'r') as file:
     config = yaml.safe_load(file)
@@ -48,6 +55,8 @@ model_path = os.path.join(run_dir, "best_model"+timestamp+".pth")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load('ViT-B/32', device)
+
+# Ensure model's data types are consistent for mixed precision training
 #https://github.com/openai/CLIP/issues/57
 def convert_models_to_fp32(model): 
     for p in model.parameters(): 
@@ -68,106 +77,120 @@ optimizer = optim.Adam(model.parameters(), lr = lr, betas = betas, eps = eps, we
 # Specify the loss function for images and texts
 loss_voxel = nn.CrossEntropyLoss()
 loss_txt = nn.CrossEntropyLoss()
+scaler = GradScaler()# Define scaler for automatic scaling of gradients/another choice is convert model to fp32
 
-# Define scaler for automatic scaling of gradients/another choice is convert model to fp32
-scaler = GradScaler()
-
-#data loader
-train_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='train', split_ratio=split_ratio, validation_ratio=validation_ratio,seed=seed)
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) 
-valid_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='valid', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
-valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
-#test_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='test', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
-#test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-best_valid_loss = float('inf')
-# Define scaler for automatic scaling of gradients
-
-writer = SummaryWriter(comment = f"_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}")
-for epoch in range(num_epochs):
-    iterations = len(train_dataloader)
-    pbar = tqdm(train_dataloader, total = iterations) #进度条 迭代器，每次迭代立面都有batch_size个元素
-    total_loss_accumulated = 0
-    #TRAIN
-    for batch_index,(voxel_inputs, text_inputs) in enumerate(pbar):# one bach have n elements
-        # Zero the gradients
-        optimizer.zero_grad()
-        voxel_inputs= voxel_inputs.to(device)
+if args.mode == 'train':
+    #data loader
+    train_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='train', split_ratio=split_ratio, validation_ratio=validation_ratio,seed=seed)
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) 
+    # valid_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='valid', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
+    # valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
     
-        # Dynamically tokenize text inputs for each batch
-        text_inputs = torch.cat([clip.tokenize(prompt) for prompt in text_inputs]).to(device)
+    best_valid_loss = float('inf')
+    # Define scaler for automatic scaling of gradients
+
+    writer = SummaryWriter(comment = f"_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}")
+    for epoch in range(num_epochs):
+        iterations = len(train_dataloader)
+        pbar = tqdm(train_dataloader, total = iterations) #进度条 迭代器，每次迭代立面都有batch_size个元素
+        total_loss_accumulated = 0
+        #TRAIN
+        for batch_index,(voxel_inputs, text_inputs) in enumerate(pbar):# one bach have n elements
+            # Zero the gradients
+            optimizer.zero_grad()
+            voxel_inputs= voxel_inputs.to(device)
         
-        # Enable autocasting for mixed precision
-        with autocast():
-            #logits_per_voxel的形状：[N, M]，表示N个voxel与M个文本描述之间的相似性分数。
-            #logits_per_text的形状：[M, N]，是logits_per_voxel的转置，表示M个文本描述与N个voxel之间的相似性分数。
-            #[5, 3, 224, 224, 224]和[5,77]
-            logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs) #会更新模型中所有requires_grad=True的参数，包括logit_scale， 比只用 image_features = model.encode_image(data 和 text 的)更好#Attention, nn.DataParallel(model) may change input dimension due to splitting to different gpu
+            # Dynamically tokenize text inputs for each batch
+            text_inputs = torch.cat([clip.tokenize(prompt) for prompt in text_inputs]).to(device)
             
-            # Compu te the loss
-            # 动态创建ground_truth以匹配每个小批次的维度
-            batch_size_actual = logits_per_voxel.shape[0]  # 使用logits_per_voxel的第一维来获取实际的批次大小
-            ground_truth = torch.arange(batch_size_actual,dtype=torch.long,device=device)#logits_per_voxel.size(0)动态构建的，这确保了无论在单GPU还是多GPU环境下，ground_truth的大小都与模型输出的批次大小匹配。
+            # Enable autocasting for mixed precision
+            with autocast():
+                #logits_per_voxel的形状：[N, M]，表示N个voxel与M个文本描述之间的相似性分数。
+                #logits_per_text的形状：[M, N]，是logits_per_voxel的转置，表示M个文本描述与N个voxel之间的相似性分数。
+                #[5, 3, 224, 224, 224]和[5,77]
+                logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs) #会更新模型中所有requires_grad=True的参数，包括logit_scale， 比只用 image_features = model.encode_image(data 和 text 的)更好#Attention, nn.DataParallel(model) may change input dimension due to splitting to different gpu
+                
+                # Compu te the loss
+                # 动态创建ground_truth以匹配每个小批次的维度
+                batch_size_actual = logits_per_voxel.shape[0]  # 使用logits_per_voxel的第一维来获取实际的批次大小
+                ground_truth = torch.arange(batch_size_actual,dtype=torch.long,device=device)#logits_per_voxel.size(0)动态构建的，这确保了无论在单GPU还是多GPU环境下，ground_truth的大小都与模型输出的批次大小匹配。
+                
+                # print(f"logits_per_voxel shape: {logits_per_voxel.shape}, dtype: {logits_per_voxel.dtype}")
+                # print(f"logits_per_text shape: {logits_per_text.shape}, dtype: {logits_per_text.dtype}")
+                # print(f"ground_truth shape: {ground_truth.shape}, dtype: {ground_truth.dtype}")
+                
+                #how to get local gpu number
+                #print(logits_per_voxel.device, logits_per_text.device, ground_truth.device)
+                #quit()
+                total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2# always 2.3, cross entropy.
+                
+                if torch.isnan(total_loss):
+                    print(f"NaN detected in loss at epoch {epoch+1}, batch {batch_index+1}")
+                # 累积每个批次的损失
+                total_loss_accumulated += total_loss.item()
+                
+            # Perform backward pass and gradient scaling
+            scaler.scale(total_loss).backward()
+            scaler.unscale_(optimizer)
+            # Update model parameters
+            scaler.step(optimizer)
+            scaler.update()
             
-            # print(f"logits_per_voxel shape: {logits_per_voxel.shape}, dtype: {logits_per_voxel.dtype}")
-            # print(f"logits_per_text shape: {logits_per_text.shape}, dtype: {logits_per_text.dtype}")
-            # print(f"ground_truth shape: {ground_truth.shape}, dtype: {ground_truth.dtype}")
+            writer.add_scalar('Loss/train by iterations', total_loss.item(), iterations*epoch + batch_index)
             
-            #how to get local gpu number
-            #print(logits_per_voxel.device, logits_per_text.device, ground_truth.device)
-            #quit()
-            total_loss = (loss_voxel(logits_per_voxel,ground_truth) + loss_txt(logits_per_text,ground_truth))/2# always 2.3, cross entropy.
-            
-            if torch.isnan(total_loss):
-                print(f"NaN detected in loss at epoch {epoch+1}, batch {batch_index+1}")
-            # 累积每个批次的损失
-            total_loss_accumulated += total_loss.item()
-            
-        # Perform backward pass and gradient scaling
-        scaler.scale(total_loss).backward()
-        scaler.unscale_(optimizer)
-        # Update model parameters
-        scaler.step(optimizer)
-        scaler.update()
+            # Print training progress
+            pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss.item():.4f}")
         
-        writer.add_scalar('Loss/train by iterations', total_loss.item(), iterations*epoch + batch_index)
+        avg_loss_per_epoch = total_loss_accumulated / iterations
+        writer.add_scalar('Loss/train by epoches', avg_loss_per_epoch, epoch)
+        # Add your validation logic here
+        # Save your model here if it's the best so far
+        # VAL.
+        # model.eval()  # 设置模型为评估模式
+        # total_valid_loss = 0
+        # with torch.no_grad():  # 关闭梯度计算
+        #     pbar_valid = tqdm(valid_dataloader, total=len(valid_dataloader))
+        #     for count, voxel_inputs, text_labels in enumerate(pbar_valid):
+        #         voxel_inputs = voxel_inputs.to(device)
+        #         text_inputs = torch.cat([clip.tokenize(f"a volume data of a {category}") for category in text_labels]).to(device)
+
+        #         with autocast():
+        #             logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs)
+        #             ground_truth = torch.arange(len(voxel_inputs), dtype=torch.long, device=device)
+        #             valid_loss = (loss_voxel(logits_per_voxel, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
+        #             total_valid_loss += valid_loss.item()
+        #             avg_valid_loss = total_valid_loss / (count + 1)
+        #         pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {total_loss.item():.4f}")
         
-        # Print training progress
-        pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss.item():.4f}")
-    
-    avg_loss_per_epoch = total_loss_accumulated / iterations
-    writer.add_scalar('Loss/train by epoches', avg_loss_per_epoch, epoch)
-    # Add your validation logic here
-    # Save your model here if it's the best so far
-    # VAL.
-    # model.eval()  # 设置模型为评估模式
-    # total_valid_loss = 0
-    # with torch.no_grad():  # 关闭梯度计算
-    #     pbar_valid = tqdm(valid_dataloader, total=len(valid_dataloader))
-    #     for count, voxel_inputs, text_labels in enumerate(pbar_valid):
-    #         voxel_inputs = voxel_inputs.to(device)
-    #         text_inputs = torch.cat([clip.tokenize(f"a volume data of a {category}") for category in text_labels]).to(device)
+        
+        # # 如果这是迄今为止最佳模型，则保存它
+        # if avg_valid_loss < best_valid_loss:
+        #     best_valid_loss = avg_valid_loss
 
-    #         with autocast():
-    #             logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs)
-    #             ground_truth = torch.arange(len(voxel_inputs), dtype=torch.long, device=device)
-    #             valid_loss = (loss_voxel(logits_per_voxel, ground_truth) + loss_txt(logits_per_text, ground_truth)) / 2
-    #             total_valid_loss += valid_loss.item()
-    #             avg_valid_loss = total_valid_loss / (count + 1)
-    #         pbar.set_description(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {total_loss.item():.4f}")
-    
-    
-    # # 如果这是迄今为止最佳模型，则保存它
-    # if avg_valid_loss < best_valid_loss:
-    #     best_valid_loss = avg_valid_loss
+        #     torch.save(model.state_dict(), model_path)
+        #     print('Model saved as validation loss improved.')
+        
+        # model.train()  # 设置模型回到训练模式
+        
+        #save after each epoch training   
+        torch.save(model.state_dict(), model_path)
+    writer.flush()
+    writer.close()
 
-    #     torch.save(model.state_dict(), model_path)
-    #     print('Model saved as validation loss improved.')
+elif args.mode == 'test':
+    test_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='test', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     
-    # model.train()  # 设置模型回到训练模式
-    
-    #save after each epoch training   
-    torch.save(model.state_dict(), model_path)
-writer.flush()
-writer.close()
-    
+    # Test loop
+    model.eval()  # Set the model to evaluation mode
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for voxel_inputs, text_inputs in test_dataloader:
+            voxel_inputs = voxel_inputs.to(device)
+            text_inputs = torch.cat([clip.tokenize(prompt) for prompt in text_inputs]).to(device)
+            logits_per_voxel, logits_per_text = model(voxel_inputs, text_inputs)
+            _, predicted = torch.max(logits_per_voxel, 1)# Returns the maximum value of each row of the input tensor in the given dimension dim, the second return value is the index location of each maximum value found (argmax).
+            total += voxel_inputs.size(0)
+            correct += (predicted == torch.arange(len(voxel_inputs), device=device)).sum().item()
+        print(f"Accuracy: {100 * correct / total:.2f}%")
