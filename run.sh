@@ -2,7 +2,7 @@
 #SBATCH --job-name=clip_voxel_cls
 #SBATCH --account=project_2002051
 #SBATCH --partition=gpusmall
-#SBATCH --time=6:00:00
+#SBATCH --time=10:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=32
 #SBATCH --gres=gpu:a100:1

@@ -49,9 +49,10 @@ weight_decay = float(optimizer_config['weight_decay'])
 train_layers = model_parameters['train_layers']
 
 # 创建基于时间戳的目录 for saving model
+hyper_param_info = f"_model_{model_name.replace('/', '_')}_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
 timestamp = datetime.now().strftime('%m%d-%H%M%S')
 run_dir = f"{SAVE_MODEL_PATH}/"
-model_path = os.path.join(run_dir, "best_model"+timestamp+".pth")
+model_path = os.path.join(run_dir, f"best_model_{timestamp}_{hyper_param_info}.pth")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load('ViT-B/32', device)
