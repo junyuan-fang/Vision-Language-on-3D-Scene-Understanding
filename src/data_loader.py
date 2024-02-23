@@ -110,7 +110,7 @@ class HDF5Dataset(Dataset):
     - validation_ratio (float, optional): The ratio of the training set to be used for validation. Default is 0.1.
     - seed (int, optional): Random seed for reproducibility. Default is 0.
     """
-    def __init__(self, h5_file, transform=None, tokenization = None, prompt = None, split = 'train', split_ratio = 0.8, validation_ratio =0.1, seed = 0):
+    def __init__(self, h5_file, transform=None, tokenization = None, prompt = None, split = 'train', split_ratio = 0.8, validation_ratio =0, seed = 0):
         assert 0 < split_ratio < 1, "split_ratio must be between 0 and 1"
         assert split in ['train', 'test', 'valid'], "split must be 'train' or 'test'"
         
@@ -135,7 +135,7 @@ class HDF5Dataset(Dataset):
         indices = np.arange(num_samples)
         self.rng.shuffle(indices)
         split_point = int(num_samples * split_ratio)
-        validation_split_point = int(split_point * (1 - validation_ratio))
+        validation_split_point = int(split_point * (1 - validation_ratio))# has some problem, validation_ratio is 0.1 of training set, not the whole dataset
 
         if split == 'train':
             self.indices = indices[:validation_split_point]

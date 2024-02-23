@@ -43,7 +43,7 @@ train_layers = model_parameters['train_layers']
 train_whole_visual_layers = model_parameters['train_whole_visual_layers']
 
 # 创建基于时间戳的目录 for saving model
-hyper_param_info = f"_training_ratio{split_ratio-validation_ratio}_model_{model_name.replace('/', '_')}_train_whole_visual_layers_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
+hyper_param_info = f"_training_ratio{split_ratio-split_ratio*validation_ratio}_model_{model_name.replace('/', '_')}_train_whole_visual_layers_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
 timestamp = datetime.now().strftime('%m%d-%H%M%S')
 run_dir = f"{SAVE_MODEL_PATH}/"
 model_path = os.path.join(run_dir, f"best_model_{timestamp}_{hyper_param_info}.pth")
