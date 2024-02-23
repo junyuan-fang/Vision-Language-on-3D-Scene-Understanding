@@ -40,9 +40,10 @@ betas = tuple([float(beta) for beta in optimizer_config['betas']])
 eps = float(optimizer_config['eps'])
 weight_decay = float(optimizer_config['weight_decay'])
 train_layers = model_parameters['train_layers']
+train_whole_visual_layers = model_parameters['train_whole_visual_layers']
 
 # 创建基于时间戳的目录 for saving model
-hyper_param_info = f"_model_{model_name}_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
+hyper_param_info = f"_model_{model_name.replace('/', '_')}_train_whole_visual_layers_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
 timestamp = datetime.now().strftime('%m%d-%H%M%S')
 run_dir = f"{SAVE_MODEL_PATH}/"
 model_path = os.path.join(run_dir, f"best_model_{timestamp}_{hyper_param_info}.pth")
@@ -60,7 +61,7 @@ convert_models_to_fp32(model)
 
 #fix others' weights but not tunable layers' weights
 for name, param in model.named_parameters():
-    if name in train_layers:
+    if name in train_whole_visual_layers:
         param.requires_grad = True
     else:
         param.requires_grad = False

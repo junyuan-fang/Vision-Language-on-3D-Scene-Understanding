@@ -4,7 +4,7 @@ data_parameters:
   prompt: "a volume data of a *"
   split_ratio: 0.8
   seed: 0
-  batch_size: 10
+  batch_size: 80
   validation_ratio: 0.1
 
 model_parameters:
@@ -170,7 +170,7 @@ model_parameters:
   - visual.ln_post.bias
   num_epochs: 20
   log_interval: 5
-  lr: 5e-7
+  lr: 1e-5
   SAVE_MODEL_PATH: 'trained_model'
   # Adam optimizer is used with specific hyperparameters
   # lr (learning rate) is set to 5e-5, which is considered safe for fine-tuning to a new dataset
@@ -179,6 +179,6 @@ model_parameters:
   # weight_decay adds L2 regularization to the optimizer
   optimizer:
     betas: [0.9, 0.98]
-    eps: 1e-10
-    weight_decay: 1e-8
+    eps: 1e-6
+    weight_decay: 0.2
     

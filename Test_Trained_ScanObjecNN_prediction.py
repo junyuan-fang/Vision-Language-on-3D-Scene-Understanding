@@ -61,7 +61,7 @@ correct = 0
 # Load the model
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load('ViT-B/32', device)
-model_path = 'trained_model/best_model0220-221952.pth'
+model_path = 'trained_model/best_model_0221-194601__model_ViT-B_32_train_whole_visual_layers_lr_1e-05_weight_decay_0.2_betas_(0.9, 0.98)_eps_1e-06.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
 generator  = data_generator(READ_PATH+file,batch_size)
 
