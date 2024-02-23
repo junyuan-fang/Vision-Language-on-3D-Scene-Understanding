@@ -2,7 +2,7 @@ data_parameters:
   file: "voxel_all.h5"
   DATA_READ_PATH: 'data/ScanObjectNN/processed_object_dataset/'
   prompt: "a volume data of a *"
-  split_ratio: 0.8
+  split_ratio: 0.2
   seed: 0
   batch_size: 80
   validation_ratio: 0.1
