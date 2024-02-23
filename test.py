@@ -10,8 +10,6 @@ READ_PATH = 'data/ScanObjectNN/processed_object_dataset/'
 
 
 with h5py.File(READ_PATH+file, 'r') as f:
-    print(f['label'][:])
-    print(f['category'][:])
-    categories = list(f['category'])
-    categories = [category.decode('utf-8') for category in categories]
-    print(categories)
+    visititems = f.visititems(print)
+
+

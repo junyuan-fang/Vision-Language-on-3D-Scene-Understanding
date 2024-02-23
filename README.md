@@ -1,3 +1,7 @@
+# config
+```
+ln -s /PATH/TO/DOWNLOADED/FOLDER data # link your data dir
+```
 # Run test
 
 ```
@@ -8,9 +12,23 @@ python3     Modelnet40_object_classification.py  test -a
 [b'bag'=0 b'bed'=1 b'bin'=2 b'box'=3 b'cabinet'=4 b'chair'=5 b'desk'=6 b'display'=7 b'door'=8 b'pillow'=9 b'shelf'=10 b'sink'=11 b'sofa'=12 b'table'=13 b'toilet'=14] 
 
 # Training
+```
+
+```
 ## In csc
 ```
 sbatch run.sh
 tensorboard --logdir=path/to/your/log-directory #view plots in tensorboard
 squeue -u $USER_NAME #view jobs in csc
 ``` 
+
+# Testing
+```
+python3 Test_Trained_ScanObjectNN_accuracy.py --mode test_test # train test split's testdata
+python3 Test_Trained_ScanObjectNN_accuracy.py --mode test_train
+python3 Test_Trained_ScanObjectNN_accuracy.py --mode test_valid
+
+
+python3 Test_Trained_ScanObjectNN_accuracy_whole.py # test trained model throght whole dataset
+
+```
