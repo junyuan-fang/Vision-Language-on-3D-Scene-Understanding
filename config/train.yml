@@ -5,7 +5,7 @@ data_parameters:
   split_ratio: 0.2
   seed: 0
   batch_size: 80
-  validation_ratio: 0.1
+  validation_ratio: 0
 
 model_parameters:
   model_name: "ViT-B/32" 

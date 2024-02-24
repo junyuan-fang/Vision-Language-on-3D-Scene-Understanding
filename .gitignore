@@ -11,4 +11,5 @@ slurm*
 thumbs.db
 .DS_Store
 .idea
+data/
 data
