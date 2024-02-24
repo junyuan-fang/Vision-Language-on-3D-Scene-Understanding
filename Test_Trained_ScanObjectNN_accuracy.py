@@ -81,14 +81,14 @@ scaler = GradScaler()# Define scaler for automatic scaling of gradients/another 
 
 if args.mode == 'test_train':
     train_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='train', split_ratio=split_ratio, validation_ratio=validation_ratio,seed=seed)
-    dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) 
+    dataloader = DataLoader(train_dataset, batch_size=10, shuffle=True) 
 
 elif args.mode == 'test_test':
     test_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='test', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
-    dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    dataloader = DataLoader(test_dataset, batch_size=10, shuffle=False)
 elif args.mode == 'test_valid':
     valid_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='valid', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
-    dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
+    dataloader = DataLoader(valid_dataset, batch_size=10, shuffle=False)
     
 # Load the model
 model_path = 'trained_model/best_model_0223-205657__training_ratio0.2_model_ViT-B_32_train_whole_visual_layers_lr_1e-05_weight_decay_0.2_betas_(0.9, 0.98)_eps_1e-06.pth'
