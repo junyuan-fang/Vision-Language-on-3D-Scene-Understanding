@@ -96,6 +96,79 @@ import numpy as np
 #         if hasattr(self, 'file') and self.file is not None:
 #             self.file.close()
 
+class HDF5_N_WAY_Dataset(Dataset):
+    def __init__(self, h5_file, transform=None, tokenization=None, prompt=None, split='train',
+                 seed=0, num_train_classes=10):
+        assert split in ['train', 'test'], "split must be 'train' or 'test'"
+
+        self.h5_file = h5_file
+        self.transform = transform
+        self.tokenization = tokenization
+        self.prompt = prompt
+        self.split = split
+        self.file = None  # Placeholder for the HDF5 file handle
+        self.rng = np.random.default_rng(seed)  # Local random number generator
+
+        # Open the HDF5 file
+        try:
+            self.file = h5py.File(self.h5_file, 'r')
+        except Exception as e:
+            raise FileNotFoundError(f"Failed to open file {self.h5_file}: {e}")
+
+        # Ensure necessary datasets are in the file
+        if 'label' not in self.file or 'data' not in self.file or 'category' not in self.file:
+            raise ValueError("HDF5 file must contain 'data', 'label', and 'category' datasets.")
+
+        # Get all unique categories and select a subset for training/testing
+        all_categories = np.unique(self.file['category'][:])
+        self.rng.shuffle(all_categories)  # Shuffle to select random categories
+
+        selected_categories = all_categories[:num_train_classes] if split == 'train' else all_categories[num_train_classes:num_train_classes + 5]
+
+        # Find indices of data that belong to selected categories
+        selected_indices = np.where(np.isin(self.file['category'][:], selected_categories))[0]
+        self.rng.shuffle(selected_indices)  # Shuffle selected indices
+
+        # Use all selected indices for training or testing
+        self.indices = selected_indices
+
+        self.categories = [category.decode('utf-8') for category in selected_categories]
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        if self.file is None:
+            raise RuntimeError("Dataset file is not open.")
+
+        actual_idx = self.indices[idx]
+        data = self.file['data'][actual_idx]
+        label = self.file['label'][actual_idx]
+        category = self.file['category'][label].decode('utf-8')  # string
+
+        if np.isnan(data).any():
+            print(f"NaN detected in data at index {actual_idx}, the data will be replaced with index 0's data")
+            data = self.file['data'][0]
+            label = self.file['label'][0]
+            category = self.file['category'][label].decode('utf-8')
+
+        transformed_data = data
+        if self.transform:
+            transformed_data = self.transform(data)
+
+        category_prompt = category
+        if self.tokenization and self.prompt:
+            category_prompt = self.prompt.replace("*", category)
+
+        return transformed_data, category_prompt
+
+    def get_categories(self):
+        return self.categories
+
+    def __del__(self):
+        if self.file is not None:
+            self.file.close()
+
 class HDF5Dataset(Dataset):
     """
     A dataset class for handling HDF5 files for PyTorch models.
@@ -135,7 +208,7 @@ class HDF5Dataset(Dataset):
         indices = np.arange(num_samples)
         self.rng.shuffle(indices)
         split_point = int(num_samples * split_ratio)
-        validation_split_point = int(split_point * (1 - validation_ratio))
+        validation_split_point = int(split_point * (1 - validation_ratio))#0->split_point->validation_split_point->1
 
         if split == 'train':
             self.indices = indices[:validation_split_point]
