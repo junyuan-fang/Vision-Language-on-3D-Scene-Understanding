@@ -32,7 +32,6 @@ prompt = data_parameters['prompt']
 n_way = data_parameters['n_way']
 seed = data_parameters['seed']
 batch_size = data_parameters['batch_size']
-validation_ratio = data_parameters['validation_ratio']
 
 # 加载模型参数
 model_parameters = config['model_parameters']
@@ -48,7 +47,7 @@ weight_decay = float(optimizer_config['weight_decay'])
 train_layers = model_parameters['train_layers']
 
 # 创建基于时间戳的目录 for saving model
-hyper_param_info = f"_model_{model_name.replace('/', '_')}_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
+hyper_param_info = f"_training_{n_way}_way_model_{model_name.replace('/', '_')}_train_whole_visual_layers_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
 timestamp = datetime.now().strftime('%m%d-%H%M%S')
 run_dir = f"{SAVE_MODEL_PATH}/"
 model_path = os.path.join(run_dir, f"best_model_{timestamp}_{hyper_param_info}.pth")

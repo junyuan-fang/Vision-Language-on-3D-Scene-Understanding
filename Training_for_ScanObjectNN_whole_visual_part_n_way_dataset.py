@@ -1,4 +1,4 @@
-·#How to fine tune clip： https://www.labellerr.com/blog/fine-tuning-clip-on-custom-dataset/
+#How to fine tune clip： https://www.labellerr.com/blog/fine-tuning-clip-on-custom-dataset/
 from clip import clip
 import torch
 from torch import nn, optim
@@ -26,7 +26,6 @@ prompt = data_parameters['prompt']
 n_way = data_parameters['n_way']
 seed = data_parameters['seed']
 batch_size = data_parameters['batch_size']
-validation_ratio = data_parameters['validation_ratio']
 
 # 加载模型参数
 model_parameters = config['model_parameters']

@@ -120,7 +120,7 @@ class HDF5_N_WAY_Dataset(Dataset):
             raise ValueError("HDF5 file must contain 'data', 'label', and 'category' datasets.")
 
         # Assuming category is a dataset of unique strings
-        all_unique_labels = np.arrange(0,len(self.file['category']))#np.unique(self.file['label'][:])
+        all_unique_labels = np.arange(0,len(self.file['category']))#np.unique(self.file['label'][:])
 
         # Select labels for train or test
         if split == 'train':
