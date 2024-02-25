@@ -119,20 +119,21 @@ class HDF5_N_WAY_Dataset(Dataset):
         if 'label' not in self.file or 'data' not in self.file or 'category' not in self.file:
             raise ValueError("HDF5 file must contain 'data', 'label', and 'category' datasets.")
 
-        # Get all unique categories and select a subset for training/testing
-        all_categories = np.unique(self.file['category'][:])
-        self.rng.shuffle(all_categories)  # Shuffle to select random categories
+        # Assuming category is a dataset of unique strings
+        all_unique_labels = np.arrange(0,len(self.file['category']))#np.unique(self.file['label'][:])
 
-        selected_categories = all_categories[:num_train_classes] if split == 'train' else all_categories[num_train_classes:num_train_classes + 5]
+        # Select labels for train or test
+        if split == 'train':
+            selected_labels = self.rng.choice(all_unique_labels, num_train_classes, replace=False)
+        else:  # For 'test', use the remaining labels
+            train_labels = self.rng.choice(all_unique_labels, num_train_classes, replace=False)
+            selected_labels = np.setdiff1d(all_unique_labels, train_labels)
 
-        # Find indices of data that belong to selected categories
-        selected_indices = np.where(np.isin(self.file['category'][:], selected_categories))[0]
-        self.rng.shuffle(selected_indices)  # Shuffle selected indices
+        # Find indices of data that belong to selected labels
+        self.indices = np.where(np.isin(self.file['label'][:], selected_labels))[0]
+        self.rng.shuffle(self.indices)  # Shuffle indices if necessary
 
-        # Use all selected indices for training or testing
-        self.indices = selected_indices
-
-        self.categories = [category.decode('utf-8') for category in selected_categories]
+        self.categories = [category.decode('utf-8') for category in self.file['category']]
 
     def __len__(self):
         return len(self.indices)

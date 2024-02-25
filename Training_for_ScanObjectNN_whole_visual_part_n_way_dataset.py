@@ -1,10 +1,10 @@
-#How to fine tune clip： https://www.labellerr.com/blog/fine-tuning-clip-on-custom-dataset/
+·#How to fine tune clip： https://www.labellerr.com/blog/fine-tuning-clip-on-custom-dataset/
 from clip import clip
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
 from torch.cuda.amp import autocast, GradScaler
-from src.data_loader import HDF5Dataset
+from src.data_loader import HDF5_N_WAY_Dataset
 from torch.utils.data import DataLoader
 from  tqdm import tqdm
 import yaml
@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 #hyperparameters
-with open('config/train.yml', 'r') as file:
+with open('config/train_n_way.yml', 'r') as file:
     config = yaml.safe_load(file)
 
 # 加载数据参数
@@ -23,7 +23,7 @@ data_parameters = config['data_parameters']
 file = data_parameters['file']
 DATA_READ_PATH = data_parameters['DATA_READ_PATH']
 prompt = data_parameters['prompt']
-split_ratio = data_parameters['split_ratio']
+n_way = data_parameters['n_way']
 seed = data_parameters['seed']
 batch_size = data_parameters['batch_size']
 validation_ratio = data_parameters['validation_ratio']
@@ -43,7 +43,7 @@ train_layers = model_parameters['train_layers']
 train_whole_visual_layers = model_parameters['train_whole_visual_layers']
 
 # 创建基于时间戳的目录 for saving model
-hyper_param_info = f"_training_ratio{split_ratio-validation_ratio}_model_{model_name.replace('/', '_')}_train_whole_visual_layers_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
+hyper_param_info = f"_training_{n_way}_way_model_{model_name.replace('/', '_')}_train_whole_visual_layers_lr_{lr}_weight_decay_{weight_decay}_betas_{betas}_eps_{eps}"
 timestamp = datetime.now().strftime('%m%d-%H%M%S')
 run_dir = f"{SAVE_MODEL_PATH}/"
 model_path = os.path.join(run_dir, f"best_model_{timestamp}_{hyper_param_info}.pth")
@@ -74,13 +74,9 @@ loss_txt = nn.CrossEntropyLoss()
 # Define scaler for automatic scaling of gradients/another choice is convert model to fp32
 scaler = GradScaler()
 
-#data loader
-train_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='train', split_ratio=split_ratio, validation_ratio=validation_ratio,seed=seed)
+#data loader h5_file
+train_dataset = HDF5_N_WAY_Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='train', num_train_classes=n_way, seed=seed)
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) 
-valid_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='valid', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
-valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=False)
-#test_dataset = HDF5Dataset(h5_file=DATA_READ_PATH+file, transform=preprocess, tokenization = clip.tokenize, prompt = prompt, split='test', split_ratio=split_ratio, validation_ratio=validation_ratio, seed=seed)
-#test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 best_valid_loss = float('inf')
 # Define scaler for automatic scaling of gradients
