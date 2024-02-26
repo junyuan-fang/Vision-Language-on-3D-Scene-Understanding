@@ -12,6 +12,7 @@ model_parameters:
   - visual.class_embedding
   - visual.positional_embedding
   - visual.conv1.weight
+  - visual.proj
   - logit_scale
   train_whole_visual_layers:
   - logit_scale
@@ -167,7 +168,7 @@ model_parameters:
   - visual.transformer.resblocks.11.ln_2.bias
   - visual.ln_post.weight
   - visual.ln_post.bias
-  num_epochs: 20
+  num_epochs: 40
   log_interval: 5
   lr: 1e-5
   SAVE_MODEL_PATH: 'trained_model'

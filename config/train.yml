@@ -13,6 +13,7 @@ model_parameters:
   - visual.class_embedding
   - visual.positional_embedding
   - visual.conv1.weight
+  - visual.proj
   - logit_scale
   train_whole_visual_layers:
   - logit_scale

@@ -13,4 +13,4 @@
 ## And use the variable $LOCAL_SCRATCH in your batch job script 
 ## to access the local fast storage on each node.
 
-python Training_for_ScanObjectNN_whole_visual_part_n_way_dataset.py
+python Training_for_ScanObjectNN_visual_part.py
