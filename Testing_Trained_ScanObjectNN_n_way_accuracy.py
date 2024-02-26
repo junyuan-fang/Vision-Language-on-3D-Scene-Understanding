@@ -92,7 +92,7 @@ elif args.mode == 'test_test':
     ##dataloader = DataLoader(valid_dataset, batch_size=10, shuffle=False)
     
 # Load the model
-model_path = 'trained_model/best_model_0225-180617__training_10_way_model_ViT-B_32_train_whole_visual_layers_lr_1e-05_weight_decay_0.2_betas_(0.9, 0.98)_eps_1e-06.pth'
+model_path = 'trained_model/best_model_0226-002500__training_10_way_model_ViT-B_32_train_whole_visual_layers_lr_1e-05_weight_decay_0.2_betas_(0.9, 0.98)_eps_1e-06.pth'
 model.load_state_dict(torch.load(model_path, map_location=device))
     # Test loop
 model.eval()  # Set the model to evaluation mode
